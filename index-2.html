@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kontantinsats</title>
+<!-- App-känsla på iPhone när den läggs på hemskärmen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kontantinsats">
+<meta name="theme-color" content="#F2F2F7">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #F2F2F7;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 48px;
+  }
+  .container { max-width: 480px; margin: 0 auto; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; padding-top: env(safe-area-inset-top); }
+  h1 { color: #000; font-size: 30px; font-weight: 800; letter-spacing: -0.5px; }
+  .saved-badge { color: #34C759; font-size: 13px; font-weight: 500; min-height: 16px; }
+
+  .goal-card {
+    background: linear-gradient(160deg, #E4F8EA 0%, #FFFFFF 70%);
+    border: 1px solid #C8EBD3; border-radius: 20px; padding: 18px; margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .goal-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .goal-label { color: #8E8E93; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
+  .goal-saved-input, .goal-target-input {
+    background: transparent; border: none; outline: none; padding: 0;
+    font-variant-numeric: tabular-nums; font-family: inherit;
+  }
+  .goal-saved-input { color: #34C759; font-size: 30px; font-weight: 800; width: 150px; }
+  .goal-target-input { color: #000; font-size: 22px; font-weight: 700; width: 110px; text-align: right; }
+
+  .donut-wrap { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+  .donut-legend { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; color: #3C3C43; font-size: 13px; font-weight: 500; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+
+  .summary-card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .summary-row { display: flex; justify-content: space-between; padding: 5px 0; }
+  .summary-label { color: #3C3C43; font-size: 15px; }
+  .summary-value { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .divider { height: 1px; background: #E5E5EA; margin: 8px 0; }
+  .hint { background: #FFF8E1; border-radius: 10px; padding: 10px 12px; color: #8A6D00; font-size: 13px; line-height: 1.45; margin-top: 10px; }
+  .projection { color: #3C3C43; font-size: 14px; line-height: 1.5; margin-top: 10px; }
+  .projection b { color: #34C759; }
+  .projection.neg { color: #FF3B30; }
+
+  .section { margin-bottom: 18px; }
+  .section-header { display: flex; justify-content: space-between; padding: 0 6px 6px; }
+  .section-title { color: #8E8E93; font-size: 12px; font-weight: 600; letter-spacing: .6px; }
+  .section-total { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+  .row { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #E5E5EA; }
+  .name-input { flex: 1; background: transparent; border: none; outline: none; color: #000; font-size: 15px; min-width: 0; font-family: inherit; }
+  .amount-input { width: 92px; background: transparent; border: none; outline: none; font-size: 15px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; font-family: inherit; }
+  .delete-btn { background: transparent; border: none; color: #C7C7CC; font-size: 14px; cursor: pointer; padding: 4px 2px; }
+  .add-btn { width: 100%; background: transparent; border: none; color: #007AFF; font-size: 15px; font-weight: 500; padding: 12px 14px; text-align: left; cursor: pointer; font-family: inherit; }
+
+  .footer { color: #8E8E93; font-size: 12px; text-align: center; margin-top: 8px; line-height: 1.5; }
+  input:focus { outline: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Kontantinsats</h1>
+    <span class="saved-badge" id="savedBadge"></span>
+  </div>
+
+  <div class="goal-card">
+    <div class="goal-top">
+      <div>
+        <div class="goal-label">Sparat hittills</div>
+        <input class="goal-saved-input" id="savedInput" inputmode="numeric">
+      </div>
+      <div style="text-align:right">
+        <div class="goal-label">Mål</div>
+        <input class="goal-target-input" id="goalInput" inputmode="numeric">
+      </div>
+    </div>
+    <div class="donut-wrap">
+      <svg id="donut" width="190" height="190" viewBox="0 0 190 190">
+        <circle cx="95" cy="95" r="84" fill="none" stroke="#E5E5EA" stroke-width="22"></circle>
+        <circle id="donutArc" cx="95" cy="95" r="84" fill="none" stroke="#34C759" stroke-width="22"
+                stroke-linecap="round" style="transition: stroke-dasharray .5s ease"></circle>
+        <text id="donutPct" x="50%" y="47%" text-anchor="middle"
+              style="font-size:36px;font-weight:800;fill:#000;font-variant-numeric:tabular-nums"></text>
+        <text x="50%" y="60%" text-anchor="middle" style="font-size:13px;fill:#8E8E93">mot målet</text>
+      </svg>
+      <div class="donut-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#34C759"></span> Sparat <span id="legendSaved" style="margin-left:2px"></span></span>
+        <span class="legend-item"><span class="legend-dot" style="background:#E5E5EA"></span> Kvar <span id="legendLeft" style="margin-left:2px"></span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="summary-card">
+    <div class="summary-row"><span class="summary-label">Inkomster</span><span class="summary-value" id="sumIncome" style="color:#34C759"></span></div>
+    <div class="summary-row"><span class="summary-label">Utgifter</span><span class="summary-value" id="sumExpenses" style="color:#FF3B30"></span></div>
+    <div class="divider"></div>
+    <div class="summary-row">
+      <span class="summary-label" style="font-weight:600;color:#000">Kan sparas per månad</span>
+      <span class="summary-value" id="sumSurplus" style="font-weight:700;font-size:20px"></span>
+    </div>
+    <div class="hint" id="debtHint" style="display:none"></div>
+    <div class="projection" id="projection"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-title">INKOMSTER / MÅNAD</span><span class="section-total" id="totIncome" style="color:#34C759"></span></div>
+    <div class="card" id="incomeList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-title">UTGIFTER / MÅNAD</span><span class="section-total" id="totExpenses" style="color:#FF3B30"></span></div>
+    <div class="card" id="expenseList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-title">SKULDER ATT BETALA AV (ENGÅNG)</span><span class="section-total" id="totDebts" style="color:#FF9500"></span></div>
+    <div class="card" id="debtList"></div>
+  </div>
+
+  <p class="footer">Allt sparas automatiskt på den här enheten. Ändra siffrorna när något förändras — allt räknas om direkt.</p>
+</div>
+
+<script>
+const STORAGE_KEY = "kontantinsats-budget-v1";
+const uid = () => Math.random().toString(36).slice(2, 9);
+const kr = n => new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(Math.round(n)) + " kr";
+
+let state = {
+  goal: 87500,
+  saved: 3000,
+  incomes: [{ id: uid(), name: "Lön Sittab (netto)", amount: 24837 }],
+  expenses: [
+    { id: uid(), name: "Hyra", amount: 9383 },
+    { id: uid(), name: "El", amount: 286 },
+    { id: uid(), name: "Internet (Bahnhof)", amount: 419 },
+    { id: uid(), name: "CSN (snitt per månad)", amount: 815 },
+    { id: uid(), name: "Mat (sparsamt)", amount: 2800 },
+    { id: uid(), name: "Nöje & övrigt (sparsamt)", amount: 1500 },
+  ],
+  debts: [
+    { id: uid(), name: "Klarna 1", amount: 3347 },
+    { id: uid(), name: "Klarna 2", amount: 1967 },
+    { id: uid(), name: "Klarna 3", amount: 300 },
+    { id: uid(), name: "Kreditkort (resor)", amount: 6162 },
+  ],
+};
+
+try {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) state = JSON.parse(raw);
+} catch (e) {}
+
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const b = document.getElementById("savedBadge");
+      b.textContent = "Sparat ✓";
+      setTimeout(() => (b.textContent = ""), 1500);
+    } catch (e) {}
+  }, 400);
+}
+
+const parseNum = v => {
+  const n = parseInt(String(v).replace(/[^\d]/g, ""), 10);
+  return isNaN(n) ? 0 : n;
+};
+
+function renderList(el, list, listName, accent, addLabel) {
+  el.innerHTML = "";
+  list.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "row";
+
+    const name = document.createElement("input");
+    name.className = "name-input";
+    name.value = item.name;
+    name.placeholder = "Namn";
+    name.oninput = () => { item.name = name.value; save(); };
+
+    const amount = document.createElement("input");
+    amount.className = "amount-input";
+    amount.style.color = accent;
+    amount.inputMode = "numeric";
+    amount.value = item.amount === 0 ? "" : String(item.amount);
+    amount.placeholder = "0";
+    amount.oninput = () => { item.amount = parseNum(amount.value); save(); updateTotals(); };
+
+    const del = document.createElement("button");
+    del.className = "delete-btn";
+    del.textContent = "✕";
+    del.setAttribute("aria-label", "Ta bort");
+    del.onclick = () => {
+      state[listName] = state[listName].filter(i => i.id !== item.id);
+      save(); render();
+    };
+
+    row.append(name, amount, del);
+    el.appendChild(row);
+  });
+
+  const add = document.createElement("button");
+  add.className = "add-btn";
+  add.textContent = "＋ " + addLabel;
+  add.onclick = () => {
+    state[listName].push({ id: uid(), name: "", amount: 0 });
+    save(); render();
+    const rows = el.querySelectorAll(".name-input");
+    if (rows.length) rows[rows.length - 1].focus();
+  };
+  el.appendChild(add);
+}
+
+function updateTotals() {
+  const income = state.incomes.reduce((s, i) => s + i.amount, 0);
+  const expenses = state.expenses.reduce((s, i) => s + i.amount, 0);
+  const debts = state.debts.reduce((s, i) => s + i.amount, 0);
+  const surplus = income - expenses;
+  const remaining = Math.max(0, state.goal - state.saved);
+  const pct = state.goal > 0 ? Math.min(100, (state.saved / state.goal) * 100) : 0;
+
+  // donut
+  const r = 84, c = 2 * Math.PI * r;
+  const filled = (pct / 100) * c;
+  const arc = document.getElementById("donutArc");
+  arc.setAttribute("stroke-dasharray", filled + " " + (c - filled));
+  arc.setAttribute("stroke-dashoffset", c / 4);
+  document.getElementById("donutPct").textContent = pct.toFixed(1) + "%";
+  document.getElementById("legendSaved").textContent = kr(state.saved);
+  document.getElementById("legendLeft").textContent = kr(remaining);
+
+  // totals
+  document.getElementById("sumIncome").textContent = "+" + kr(income);
+  document.getElementById("sumExpenses").textContent = "−" + kr(expenses);
+  document.getElementById("totIncome").textContent = kr(income);
+  document.getElementById("totExpenses").textContent = kr(expenses);
+  document.getElementById("totDebts").textContent = kr(debts);
+
+  const surplusEl = document.getElementById("sumSurplus");
+  surplusEl.textContent = kr(surplus);
+  surplusEl.style.color = surplus >= 0 ? "#34C759" : "#FF3B30";
+
+  // hint
+  const hint = document.getElementById("debtHint");
+  if (debts > 0) {
+    hint.style.display = "block";
+    hint.textContent = "💡 Betala först av skulderna (" + kr(debts) + ") — de kostar ränta. Sen går hela överskottet till sparandet.";
+  } else {
+    hint.style.display = "none";
+  }
+
+  // projection
+  const proj = document.getElementById("projection");
+  if (surplus > 0) {
+    const months = Math.ceil(debts / surplus + remaining / surplus);
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    const label = d.toLocaleDateString("sv-SE", { month: "long", year: "numeric" });
+    proj.className = "projection";
+    proj.innerHTML = "I den här takten når du målet om <b>" + months + " månader</b> — ungefär <b>" + label + "</b>.";
+  } else {
+    proj.className = "projection neg";
+    proj.textContent = "Utgifterna är högre än inkomsterna — justera budgeten för att kunna spara.";
+  }
+}
+
+function render() {
+  const savedInput = document.getElementById("savedInput");
+  const goalInput = document.getElementById("goalInput");
+  savedInput.value = String(state.saved);
+  goalInput.value = String(state.goal);
+  savedInput.oninput = () => { state.saved = parseNum(savedInput.value); save(); updateTotals(); };
+  goalInput.oninput = () => { state.goal = parseNum(goalInput.value); save(); updateTotals(); };
+
+  renderList(document.getElementById("incomeList"), state.incomes, "incomes", "#34C759", "Lägg till inkomst");
+  renderList(document.getElementById("expenseList"), state.expenses, "expenses", "#FF3B30", "Lägg till utgift");
+  renderList(document.getElementById("debtList"), state.debts, "debts", "#FF9500", "Lägg till skuld");
+  updateTotals();
+}
+
+render();
+</script>
+</body>
+</html>
